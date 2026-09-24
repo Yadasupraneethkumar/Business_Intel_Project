@@ -3,7 +3,6 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEmbeddings 
-
 from ingestion.pdf_to_markdown import PDFToMarkdownConverter
 from ingestion.semantic_chunker import chunk_markdown
 from vectorstore.chroma_vectorstore import ChromaVectorStore, Retriever
@@ -50,6 +49,7 @@ def ingest_document(
     company, year = parse_company_year(pdf_file)
     print(f"INgesting {pdf_file.name} as company={company!r}, year={year!r}")
 
+    # Convert PDF to Markdown
     converter = PDFToMarkdownConverter()
 
 
@@ -65,7 +65,6 @@ def ingest_document(
 
     print(f"Generated {len(chunks)} chunks for {pdf_file.name}")
 
-
     vector_store.upload_chunks(
         chunks=chunks,
         embeddings=embeddings,
@@ -74,33 +73,41 @@ def ingest_document(
         source_file=pdf_file.name
     )
 
+    # Create retriever directly from Chroma
+    retriever = vector_store.as_retriever(
+        search_kwargs={"k": 5}
+    )
+
     #Extract financial metrics using the newly ingested data
     metrics = extract_financial_metrics(
-        retriever=Retriever(vector_store.client),
+        retriever=retriever,
         company=company,
         year=int(year) if year.isdigit() else None
     )
 
     #Persist metrics to PostgreSQL
     if metrics:
-        save_metrics(company=company, year=int(year) if str(year).isdigit() else None, metrics=metrics)
+        save_metrics(
+        company=company, 
+        year=int(year) if str(year).isdigit() else None, 
+        metrics=metrics
+    )
 
 def ingest_directory(input_dir: str) -> None:
     """
     Ingest all PDFs from a directory.
     """
 
+    # Local Embedding Model
     embeddings = HuggingFaceEmbeddings(
-        model=os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT"),
-        azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-        api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-        api_version=os.getenv("AZURE_OPENAI_API_VERSION")
+        model_name=("sentence-transformers/all-MiniLM-L6-v2")
     )
 
+    # Local persistent ChromaDB
     vector_store = ChromaVectorStore(
-        endpoint=os.getenv("AZURE_SEARCH_ENDPOINT"),
-        api_key=os.getenv("AZURE_SEARCH_API_KEY"),
-        index_name=os.getenv("AZURE_SEARCH_INDEX_NAME")
+        collection_name = "financial_documents",
+        embedding_function=embeddings,
+        persist_directory="./chroma_db"
     )
 
     pdf_files = list(Path(input_dir).glob("*.pdf"))
@@ -118,14 +125,3 @@ def ingest_directory(input_dir: str) -> None:
 if __name__ == "__main__":
     ingest_directory("data/raw_pdfs")
     # ingest_document("data/raw_pdfs/2024_Apple.pdf")
-
-
-
-
-
-
-
-
-
-
-

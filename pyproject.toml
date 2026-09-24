@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12.11"
 dependencies = [
+    "langchain-chroma>=1.1.0",
     "langchain-huggingface>=1.2.2",
     "pymupdf4llm>=1.28.2",
     "python-dotenv>=1.2.3",
