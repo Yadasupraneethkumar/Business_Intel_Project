@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, field_validator, Field
 
 from llm.groq_client import get_structured_completion
-from vectorstore.chroma_vectorstore import ChromaVectorStore, Retriever
+from vectorstore.weaviate_vectorstore import WeaviateVectorStore, Retriever
 from langchain_huggingface import HuggingFaceEmbeddings
 
 
@@ -28,7 +28,7 @@ def retrieve_context(
     year: int
 ) -> str:
     """
-    Retrieve broad financial context from the vector store.
+    Retrieve broad financial context from Weaviate.
     """
     query = f"""
     Annual report financial statements,
@@ -47,6 +47,13 @@ def retrieve_context(
         year=year,
         top_k=20
     )
+    if not documents:
+        print(
+            f"No relevant documents found for "
+            f"{company} {year}."
+        )
+        return ""
+    
     # print(documents)
     return "\n\n".join(
         doc.page_content
@@ -99,13 +106,15 @@ def extract_financial_metrics(
     year: int
 ) -> dict:
     """
-    Extract KPIs using RAG.
+    Extract financial KPIs using RAG and Groq.
     """
     context = retrieve_context(
         retriever=retriever,
         company=company,
         year=year
     )
+    if not context:
+        return {}
 
     prompt = build_extraction_prompt(
         company=company,
@@ -118,48 +127,78 @@ def extract_financial_metrics(
         response_model=FinancialMetrics
     )
 
-    return metrics.model_dump()
+    return metrics.model_dump(
+        by_alias=True
+    )
 
 
 def main() -> None:
+    """
+    Test KPI extraction directly
+    """
     company = "Apple"
     year = 2024
+
+    print("=" * 70)
+    print("Loading embedding model")
+    print("=" * 70)
 
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
+    print("Embedding model loaded successfully.\n")
 
-    vector_store = ChromaVectorStore(
-        collection_name="financial_documents",
-        embedding_function=embeddings,
-        persist_directory="./chroma_db"
+    print("=" * 70)
+    print("Connecting to Weaviate")
+    print("=" * 70)
+
+    vector_store = WeaviateVectorStore(
+        collection_name="FinancialDocuments",
+        embedding_function=embeddings
     ) 
+    print("Weaviate vector store initialized successfully.\n")
 
-    retriever = Retriever(
-        vector_store.client
-    )
+    try:
+        # IMPORTANT:
+        # Retriever expects the WeaviateVectorStore,
+        # not vector_store.client.
+        retriever = Retriever(vector_store)
 
-    results = extract_financial_metrics(
-        retriever=retriever,
-        company=company,
-        year=year
-    )
+        print("=" * 70)
+        print(f"Extracting KPIs for {company} {year}")
+        print("=" * 70)
 
-    print(f"\nExtracted KPIs for {company} {year}\n")
+        results = extract_financial_metrics(
+            retriever=retriever,
+            company=company,
+            year=year
+        )
+        print(f"\nExtracted KPIs for {company} {year}\n")
 
-    for key, value in results.items():
-        print(f"{key}:")
-        print(value)
-        print("-" * 80)
+        if not results:
+            print("No KPIs were extracted.")
+            return
 
+        for key, value in results.items():
+            print(f"{key}:")
+            print(value)
+            print("-" * 80)
 
-    from database.save_metrics import save_metrics
+        # -----------------------------------------------------
+        # Save extracted metrics to PostgreSQL
+        # -----------------------------------------------------
+        from database.save_metrics import save_metrics
 
-    save_metrics(
-        company=company,
-        year=year,
-        metrics=results
-    )
+        save_metrics(
+            company=company,
+            year=year,
+            metrics=results
+        )
+        print(f"\nFinancial metrics saved to PostgreSQL.")
+
+    finally:
+        vector_store.close()
+        print("\nWeaviate connection closed.")
 
 if __name__ == "__main__":
     main()

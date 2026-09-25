@@ -9,4 +9,5 @@ dependencies = [
     "langchain-huggingface>=1.2.2",
     "pymupdf4llm>=1.28.2",
     "python-dotenv>=1.2.3",
+    "weaviate-client>=4.23.1",
 ]

@@ -1,7 +1,7 @@
 from pathlib import Path
 import pymupdf4llm
 
-class PDFToMarkdoenConverter:
+class PDFToMarkdownConverter:
     """Convert PDF documents to Markdown."""
     
     def convert_pdf(self, pdf_path: str, output_dir: str) -> str:
@@ -64,9 +64,9 @@ if __name__ == "__main__":
     input_dir = repo_root / "data" / "raw_pdfs"
     output_dir = repo_root / "data" / "markdown"
 
-    converter = PDFToMarkdoenConverter()
+    converter = PDFToMarkdownConverter()
 
-    markdown_files = converter.conver_directory(
+    markdown_files = converter.convert_directory(
         input_dir = str(input_dir),
         output_dir = str(output_dir)
     )
