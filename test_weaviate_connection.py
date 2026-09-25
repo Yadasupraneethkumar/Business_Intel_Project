@@ -26,7 +26,7 @@ client = weaviate.connect_to_weaviate_cloud(
 
 try:
     if client.is_ready():
-        print("SUCCESS: Weaviate Cloud is readyyyy.")
+        print("SUCCESS: Weaviate Cloud is ready.")
     else:
         print("ERROR: Weaviate Cloud is not ready.")
 
