@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from langchain_core.documents import Document
-from langchain_experimental.text_splitter import SemanticChunker
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 def read_markdown(markdown_file: str) -> str:
@@ -35,9 +35,16 @@ def chunk_markdown(
 
     markdown_content = read_markdown(markdown_file)
 
-    splitter = SemanticChunker(
-        embeddings=embeddings,
-        breakpoint_threshold_type="percentile"
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=3000,
+        chunk_overlap=500,
+        separators=[
+            "\n## ",
+            "\n### ",
+            "\n\n",
+            "\n",
+            " ",
+        ],
     )
 
     return splitter.create_documents([markdown_content])

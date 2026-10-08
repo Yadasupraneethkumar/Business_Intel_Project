@@ -1,5 +1,5 @@
 from sqlalchemy import text
-
+from fastapi.encoders import jsonable_encoder
 from database.postgres_sql import get_engine
 
 
@@ -24,4 +24,4 @@ def get_metrics():
         result = connection.execute(text(query))
         rows = [dict(row._mapping) for row in result]
 
-    return rows
+    return jsonable_encoder(rows)

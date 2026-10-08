@@ -22,43 +22,70 @@ class FinancialMetrics(BaseModel):
     growth_drivers: str | list | None = Field(None, alias="Top Growth Drivers")
 
 
-def retrieve_context(
-    retriever: Retriever,
-    company: str,
-    year: int
-) -> str:
-    """
-    Retrieve broad financial context from Weaviate.
-    """
-    query = f"""
-    Annual report financial statements,
-    income statement,
-    balance sheet,
-    cash flow statement,
-    risks,
-    growth drivers,
-    financial performance
-    for {company} fiscal year {year}
-    """
+def retrieve_context(retriever: Retriever, company: str, year: int) -> str:
+    queries = [
+    "consolidated statements of income net income revenue operating income",
+    "consolidated statements of cash flows operating activities",
+    "consolidated balance sheets total assets total liabilities",
+    "net income",
+    "total assets total liabilities",
+    "cash flows from operating activities",
+    "risk factors",
+    "growth drivers"
+]
 
-    documents = retriever.invoke(
-        query=query,
-        company=company,
-        year=year,
-        top_k=20
-    )
-    if not documents:
-        print(
-            f"No relevant documents found for "
-            f"{company} {year}."
+    all_documents = []
+
+    for query in queries:
+        documents = retriever.invoke(
+            query=query,
+            company=company,
+            year=year,
+            top_k=3
         )
-        return ""
-    
-    # print(documents)
-    return "\n\n".join(
-        doc.page_content
-        for doc in documents
+        all_documents.extend(documents)
+
+    # Remove duplicate chunks
+    unique_documents = []
+    seen = set()
+
+    for document in all_documents:
+        content = document.page_content.strip()
+
+        if content and content not in seen:
+            seen.add(content)
+            unique_documents.append(document)
+
+    MAX_TOTAL_CHARS = 24000
+    MAX_CHARS_PER_DOCUMENT = 3000
+
+    context_parts = []
+    total_chars = 0
+
+    for document in unique_documents:
+        content = document.page_content.strip()[:MAX_CHARS_PER_DOCUMENT]
+
+        remaining = MAX_TOTAL_CHARS - total_chars
+
+        if remaining <= 0:
+            break
+
+        content = content[:remaining]
+        context_parts.append(content)
+        total_chars += len(content)
+
+    print(
+        f"Retrieved {len(unique_documents)} unique documents; "
+        f"using {len(context_parts)} chunks and {total_chars} characters of context."
     )
+
+    print("\n===== RETRIEVED CONTEXT PREVIEW =====")
+    for i, part in enumerate(context_parts, 1):
+        print(f"\n--- CHUNK {i} ---")
+        print(part[:1000])
+    print("===== END RETRIEVED CONTEXT =====\n")
+
+    return "\n\n---\n\n".join(context_parts)
 
 
 def build_extraction_prompt(
@@ -70,10 +97,7 @@ def build_extraction_prompt(
     Build KPI extraction prompt.
     """
     return f"""
-You are an expert financial analyst.
-
-Company: {company}
-Year: {year}
+Extract financial information from the provided {company} {year} annual-report context.
 
 Context:
 {context}

@@ -9,3 +9,7 @@ wheels/
 # Virtual environments
 .venv
 .env
+*.pyc
+data/raw_pdfs/
+data/markdown/
+data

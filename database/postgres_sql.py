@@ -30,7 +30,6 @@ def get_engine(database: str | None = None):
     connection_string = (
         f"postgresql+psycopg2://"
         f"{encoded_user}:{encoded_password}@{host}:{port}/{database}"
-        "?sslmode=require"
     )
 
     return create_engine(connection_string)
@@ -55,8 +54,7 @@ def create_database() -> None:
             port=port,
             database="postgres",
             user=user,
-            password=password,
-            sslmode="require"
+            password=password
         )
         # Enable autocommit mode before executing CREATE DATABASE
         conn.autocommit = True

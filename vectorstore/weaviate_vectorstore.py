@@ -4,7 +4,7 @@ import weaviate
 from dotenv import load_dotenv
 from langchain_core.documents import Document
 from weaviate.classes.config import Configure, DataType, Property
-from weaviate.classes.init import Auth
+from weaviate.classes.init import Auth, AdditionalConfig, Timeout
 from weaviate.classes.query import Filter
 from weaviate.classes.data import DataObject
 
@@ -51,7 +51,14 @@ class WeaviateVectorStore:
 
         self.client = weaviate.connect_to_weaviate_cloud(
             cluster_url=weaviate_url,
-            auth_credentials=Auth.api_key(weaviate_api_key)
+            auth_credentials=Auth.api_key(weaviate_api_key),
+            additional_config=AdditionalConfig(
+                timeout=Timeout(
+                    init=60,
+                    query=60,
+                    insert=120
+                )
+            )
         )
 
         if not self.client.is_ready():
@@ -240,17 +247,14 @@ class Retriever:
         # ---------------------------------------------------------
         # 3. Perform vector similarity search
         # ---------------------------------------------------------
-        if combined_filter is not None:
-            response = self.vector_store.collection.query.near_vector(
-                near_vector=query_vector,
-                filters=combined_filter,
-                limit=top_k
-            )
-        else:
-            response = self.vector_store.collection.query.near_vector(
-                near_vector=query_vector,
-                limit=top_k
-            )
+        response = self.vector_store.collection.query.hybrid(
+        query=query,
+        vector=query_vector,
+        alpha=0.35,
+        query_properties=["content"],
+        filters=combined_filter,
+        limit=top_k
+    )
 
         # ---------------------------------------------------------
         # 4. Convert Weaviate objects back into LangChain Documents
