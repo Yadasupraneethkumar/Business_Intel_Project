@@ -1,0 +1,27 @@
+# Python-generated files
+__pycache__
+*.py[oc]
+build
+dist
+wheels
+*.egg-info
+.git
+.gitignore
+.cache
+.env.*
+!.env.example
+# Virtual environments
+.venv
+venv
+.env
+.git
+*.pyc
+data/raw_pdfs/
+data/markdown/
+.pytest_cache
+.mypy_cache
+.cache/
+chroma_db/
+*.log
+.ipynb_checkpoints
+node_modules

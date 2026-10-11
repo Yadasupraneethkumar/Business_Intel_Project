@@ -1,20 +1,15 @@
 pymupdf4llm
 langchain
 langchain-experimental
-# langchain-openai
+langchain-huggingface
 langchain-groq
-# openai
-# azure-search-documents
-
-psycopg2-binary
+langchain-text-splitters
+psycopg2-binary==2.9.13
 sqlalchemy
-psycopg2
-
+weaviate-client
 fastapi
 uvicorn
 python-multipart
 jinja2
-
+python-dotenv
 sentence-transformers
-chromadb
-

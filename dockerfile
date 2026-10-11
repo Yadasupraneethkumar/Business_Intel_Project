@@ -1,21 +1,21 @@
-# Use a lightweight Python image for the runtime
+
 FROM python:3.12-slim
 
-# Set the working directory inside the container
 WORKDIR /app
 
-RUN pip install uv
+RUN pip install --no-cache-dir uv
 
 COPY requirements.txt ./
 
-RUN uv pip install --system -r requirements.txt
+# Install CPU-only PyTorch to avoid unnecessary GPU/CUDA packages
+RUN uv pip install --system --no-cache \
+    --index-url https://download.pytorch.org/whl/cpu torch
 
-# Copy application code into the container
+# Install the remaining application dependencies
+RUN uv pip install --system --no-cache -r requirements.txt
+
 COPY . /app
 
-# Expose the port the app will run on
 EXPOSE 8000
 
-# Use uvicorn to run the FastAPI app defined in app.py
 CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000}"]
-

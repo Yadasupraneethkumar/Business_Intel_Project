@@ -1,107 +1,83 @@
+
 import sys
 
+from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEmbeddings
 
-from vectorstore.chroma_vectorstore import ChromaVectorStore, Retriever
+from vectorstore.weaviate_vectorstore import (
+    WeaviateVectorStore,
+    Retriever,
+)
+
+load_dotenv()
 
 
 def search_vectorstore(
     query: str,
     top: int = 5,
     company: str | None = None,
-    year: int | None = None
+    year: int | None = None,
 ):
-    """
-    Search the local ChromaDB vector store and display
-    the most relevant document chunks.
-    """
+    """Search Weaviate Cloud and display relevant document chunks."""
 
-    # Create the same embedding model used during ingestion
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
-    # Connect to the existing ChromaDB collection
-    store = ChromaVectorStore(
-        collection_name="financial_documents",
-        embedding_function=embeddings,
-        persist_directory="./chroma_db"
-    )
+    store = None
 
-    # Create retriever
-    retriever = Retriever(store.client)
-
-    # Search ChromaDB
-    results = retriever.invoke(
-        query=query,
-        company=company,
-        year=year,
-        top_k=top
-    )
-
-    print(f"Query: {query!r}")
-    print(f"Top: {top}")
-
-    if company:
-        print(f"Company: {company}")
-
-    if year:
-        print(f"Year: {year}")
-
-    print(f"Results: {len(results)}\n")
-
-    # Display results
-    for idx, document in enumerate(results, start=1):
-
-        content = document.page_content
-
-        snippet = (
-            content.strip().replace("\n", " ")
-            if isinstance(content, str)
-            else "<no content>"
+    try:
+        store = WeaviateVectorStore(
+            collection_name="FinancialDocuments",
+            embedding_function=embeddings,
         )
 
-        if len(snippet) > 350:
-            snippet = snippet[:350].rstrip() + "..."
+        retriever = Retriever(store)
 
-        print(f"Result {idx}")
-        print(f"  content snippet: {snippet}")
-
-        if document.metadata:
-            print(f"  metadata: {document.metadata}")
-
-        print("  " + "-" * 60)
-
-    if not results:
-        print(
-            "No results returned. "
-            "Verify that ChromaDB contains documents "
-            "or try a different query."
+        results = retriever.invoke(
+            query=query,
+            company=company,
+            year=year,
+            top_k=top,
         )
 
-    return results
+        print(f"Query: {query!r}")
+        print(f"Top: {top}")
+        print(f"Company: {company or 'All'}")
+        print(f"Year: {year or 'All'}")
+        print(f"Results: {len(results)}\n")
+
+        for idx, document in enumerate(results, start=1):
+            snippet = document.page_content.strip().replace("\n", " ")
+            if len(snippet) > 350:
+                snippet = snippet[:350].rstrip() + "..."
+
+            print(f"Result {idx}")
+            print(f"  Content: {snippet}")
+            print(f"  Metadata: {document.metadata}")
+            print("-" * 60)
+
+        if not results:
+            print("No results returned from Weaviate.")
+
+        return results
+
+    finally:
+        if store is not None:
+            store.close()
 
 
 def main():
-
     if len(sys.argv) < 2:
         print(
-            'Usage: python -m rag.retrieval_debug '
+            'Usage: uv run python -m rag.retrieval_debug '
             '"your query here"'
         )
         sys.exit(1)
 
     query = " ".join(sys.argv[1:])
-
     search_vectorstore(query)
 
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-

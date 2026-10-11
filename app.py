@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 
 #Database initialization scripts
 from database.metrics import get_metrics
-from database.postgres_sql import create_database
 from database.create_table import create_tables
 
 # Official Application Routes
@@ -21,7 +20,6 @@ load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    create_database()
     create_tables()
     yield
 
